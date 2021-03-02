@@ -8,6 +8,7 @@ pub fn build<'a, 'b>() -> App<'a, 'b> {
         .arg(
             Arg::with_name("symbols")
                 .help("Sets stock symbols")
+                .value_name("SYMBOL")
                 .short("s")
                 .long("symbols")
                 .multiple(true)
@@ -17,6 +18,7 @@ pub fn build<'a, 'b>() -> App<'a, 'b> {
         .arg(
             Arg::with_name("from")
                 .help("Sets from date yyyy-mm-dd")
+                .value_name("DATE")
                 .short("f")
                 .long("from")
                 .required(true)
