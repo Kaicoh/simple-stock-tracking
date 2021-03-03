@@ -2,19 +2,23 @@ pub mod app;
 pub mod date;
 
 pub fn min(series: &[f64]) -> Option<f64> {
-    series
-        .iter()
-        .filter(|v| !v.is_nan())
-        .min_by(|x, y| x.partial_cmp(y).unwrap())
+    filter_nan(series)
+        .min_by(cmp_f64())
         .cloned()
 }
 
 pub fn max(series: &[f64]) -> Option<f64> {
-    series
-        .iter()
-        .filter(|v| !v.is_nan())
-        .max_by(|x, y| x.partial_cmp(y).unwrap())
+    filter_nan(series)
+        .max_by(cmp_f64())
         .cloned()
+}
+
+fn filter_nan(series: &[f64]) -> impl Iterator<Item = &f64> {
+    series.iter().filter(|v| !v.is_nan())
+}
+
+fn cmp_f64() -> Box<dyn FnMut(&&f64, &&f64) -> std::cmp::Ordering> {
+    Box::new(|x: &&f64, y: &&f64| x.partial_cmp(y).unwrap())
 }
 
 #[cfg(test)]
