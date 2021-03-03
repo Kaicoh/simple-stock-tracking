@@ -5,7 +5,7 @@ pub fn min(series: &[f64]) -> Option<f64> {
     if has_nan(series) {
         None
     } else {
-        series.iter().min_by(|x, y| x.partial_cmp(y).unwrap()).map(|x| *x)
+        series.iter().min_by(|x, y| x.partial_cmp(y).unwrap()).cloned()
     }
 }
 
@@ -13,7 +13,7 @@ pub fn max(series: &[f64]) -> Option<f64> {
     if has_nan(series) {
         None
     } else {
-        series.iter().max_by(|x, y| x.partial_cmp(y).unwrap()).map(|x| *x)
+        series.iter().max_by(|x, y| x.partial_cmp(y).unwrap()).cloned()
     }
 }
 
