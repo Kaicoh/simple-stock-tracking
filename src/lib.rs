@@ -2,23 +2,25 @@ pub mod app;
 pub mod date;
 
 pub fn min(series: &[f64]) -> Option<f64> {
-    filter_nan(series)
-        .min_by(cmp_f64())
-        .cloned()
+    filter_nan(series).min_by(cmp_f64())
 }
 
 pub fn max(series: &[f64]) -> Option<f64> {
-    filter_nan(series)
-        .max_by(cmp_f64())
-        .cloned()
+    filter_nan(series).max_by(cmp_f64())
 }
 
-fn filter_nan(series: &[f64]) -> impl Iterator<Item = &f64> {
-    series.iter().filter(|v| !v.is_nan())
+fn filter_nan(series: &[f64]) -> impl Iterator<Item = f64> + '_ {
+    series.iter().filter_map(|v| {
+        if v.is_nan() {
+            None
+        } else {
+            Some(*v)
+        }
+    })
 }
 
-fn cmp_f64() -> Box<dyn FnMut(&&f64, &&f64) -> std::cmp::Ordering> {
-    Box::new(|x: &&f64, y: &&f64| x.partial_cmp(y).unwrap())
+fn cmp_f64() -> Box<dyn FnMut(&f64, &f64) -> std::cmp::Ordering> {
+    Box::new(|x: &f64, y: &f64| x.partial_cmp(y).unwrap())
 }
 
 #[cfg(test)]
