@@ -21,6 +21,17 @@ pub fn n_window_sma(n: usize, series: &[f64]) -> Option<Vec<f64>> {
     Some(smas)
 }
 
+pub fn price_diff(series: &[f64]) -> Option<(f64, f64)> {
+    match (series.first(), series.last()) {
+        (Some(first), Some(last)) => {
+            let diff = last - first;
+            let percentage = diff * 100.0 / first;
+            Some((percentage, diff.abs()))
+        },
+        (_, _) => None,
+    }
+}
+
 fn filter_nan(series: &[f64]) -> impl Iterator<Item = f64> + '_ {
     series
         .iter()
@@ -133,6 +144,25 @@ mod tests {
         fn return_empty_if_given_empty() {
             let series: Vec<f64> = vec![];
             assert_eq!(Some(vec![]), n_window_sma(3, &series));
+        }
+    }
+
+    mod fn_price_diff {
+        use super::*;
+
+        #[test]
+        fn return_two_diffs() {
+            let series: Vec<f64> = vec![10.0, 3.2, 6.0];
+            assert_eq!(Some((-40.0, 4.0)), price_diff(&series));
+
+            let series: Vec<f64> = vec![5.0, 3.2, 6.0];
+            assert_eq!(Some((20.0, 1.0)), price_diff(&series));
+        }
+
+        #[test]
+        fn return_none_if_empty() {
+            let series: Vec<f64> = vec![];
+            assert_eq!(None, price_diff(&series));
         }
     }
 
