@@ -1,4 +1,4 @@
-use chrono::Utc;
+use chrono::{Utc, DateTime, NaiveDateTime};
 use simple_stock_tracking as sst;
 use yahoo_finance_api as yahoo;
 
@@ -51,9 +51,11 @@ fn main() {
             },
         )
         .collect();
-    // 4. Calculate performance indicators
-    // 5. print CSV
+
+    println!("period start,symbol,price,change %,min,max");
     for i in indicators {
+        // 4. Calculate performance indicators
+        // 5. print CSV
         i.print();
     }
 }
@@ -69,6 +71,7 @@ fn fmt_opt_f64(val: Option<f64>) -> String {
 
 struct Indicator<'a> {
     symbol: &'a str,
+    timestamp: u64, // last quote timestamp
     price: f64, // last quote price
     adjcloses: Vec<f64>,
 }
@@ -77,6 +80,7 @@ impl<'a> Indicator<'a> {
     fn new(symbol: &'a str, last_quote: yahoo::Quote, quotes: Vec<yahoo::Quote>) -> Self {
         Self {
             symbol,
+            timestamp: last_quote.timestamp,
             price: last_quote.adjclose,
             adjcloses: quotes.iter().map(|q| q.adjclose).collect(),
         }
@@ -95,13 +99,15 @@ impl<'a> Indicator<'a> {
     }
 
     fn print(&self) {
+        let dt = DateTime::<Utc>::from_utc(NaiveDateTime::from_timestamp(self.timestamp as i64, 0), Utc);
         println!(
-            "{},${:.2},${},${},{}%",
+            "{},{},${:.2},{}%,${},${}",
+            dt.to_rfc3339(),
             self.symbol,
             self.price,
+            fmt_opt_f64(self.percentage()),
             fmt_opt_f64(self.min()),
             fmt_opt_f64(self.max()),
-            fmt_opt_f64(self.percentage()),
         );
     }
 }
