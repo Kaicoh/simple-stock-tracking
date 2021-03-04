@@ -11,20 +11,20 @@ pub fn max(series: &[f64]) -> Option<f64> {
 
 pub fn n_window_sma(n: usize, series: &[f64]) -> Option<Vec<f64>> {
     let series: Vec<f64> = filter_nan(series).collect();
-    let mut ret: Vec<f64> = Vec::new();
+    let mut smas: Vec<f64> = Vec::new();
     let windows = Window::new(n, &series);
 
     for w in windows {
-        ret.push(average(w));
+        smas.push(average(w));
     }
 
-    Some(ret)
+    Some(smas)
 }
 
 fn filter_nan(series: &[f64]) -> impl Iterator<Item = f64> + '_ {
     series
         .iter()
-        .filter_map(|v| if v.is_nan() { None } else { Some(*v) })
+        .filter_map(|&v| if v.is_nan() { None } else { Some(v) })
 }
 
 // NOTE: Use when you're convinced that both x and y aren't NAN.
