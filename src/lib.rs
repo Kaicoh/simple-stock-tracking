@@ -14,7 +14,7 @@ pub fn n_window_sma(n: usize, series: &[f64]) -> Option<Vec<f64>> {
     let mut ret: Vec<f64> = Vec::new();
     let mut windows = Window::new(n, &series);
 
-    while let Some(w) = windows.next() {
+    for w in windows {
         ret.push(average(w));
     }
 
@@ -22,13 +22,9 @@ pub fn n_window_sma(n: usize, series: &[f64]) -> Option<Vec<f64>> {
 }
 
 fn filter_nan(series: &[f64]) -> impl Iterator<Item = f64> + '_ {
-    series.iter().filter_map(|v| {
-        if v.is_nan() {
-            None
-        } else {
-            Some(*v)
-        }
-    })
+    series
+        .iter()
+        .filter_map(|v| if v.is_nan() { None } else { Some(*v) })
 }
 
 // NOTE: Use when you're convinced that both x and y aren't NAN.
@@ -130,19 +126,13 @@ mod tests {
         #[test]
         fn return_simple_moving_averages() {
             let series: Vec<f64> = vec![2.1, 7.2, 3.6, 0.0];
-            assert_eq!(
-                Some(vec![4.3, 3.6]),
-                n_window_sma(3, &series)
-            );
+            assert_eq!(Some(vec![4.3, 3.6]), n_window_sma(3, &series));
         }
 
         #[test]
         fn return_empty_if_given_empty() {
             let series: Vec<f64> = vec![];
-            assert_eq!(
-                Some(vec![]),
-                n_window_sma(3, &series)
-            );
+            assert_eq!(Some(vec![]), n_window_sma(3, &series));
         }
     }
 

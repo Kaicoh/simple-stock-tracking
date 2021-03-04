@@ -1,4 +1,4 @@
-use chrono::{Utc, Date, NaiveDate};
+use chrono::{Date, NaiveDate, Utc};
 
 pub fn from_string(date: &str) -> Result<Date<Utc>, &'static str> {
     NaiveDate::parse_from_str(date, "%Y-%m-%d")
@@ -15,10 +15,7 @@ mod tests {
     fn success_parsing() {
         let result = from_string("2020-01-01");
         assert!(result.is_ok());
-        assert_eq!(
-            result.unwrap(),
-            Utc.ymd(2020, 1, 1)
-        );
+        assert_eq!(result.unwrap(), Utc.ymd(2020, 1, 1));
     }
 
     #[test]
