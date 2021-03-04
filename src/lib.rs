@@ -12,7 +12,7 @@ pub fn max(series: &[f64]) -> Option<f64> {
 pub fn n_window_sma(n: usize, series: &[f64]) -> Option<Vec<f64>> {
     let series: Vec<f64> = filter_nan(series).collect();
     let mut ret: Vec<f64> = Vec::new();
-    let mut windows = Window::new(n, &series);
+    let windows = Window::new(n, &series);
 
     for w in windows {
         ret.push(average(w));
