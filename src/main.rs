@@ -1,9 +1,10 @@
 use chrono::Utc;
-use simple_stock_tracking::{app, date};
+use simple_stock_tracking as sst;
+use yahoo_finance_api as yahoo;
 
 fn main() {
     // 1. Get command line parameters
-    let matches = app::build().get_matches();
+    let matches = sst::app::build().get_matches();
 
     // 2. Validate parameters
     let symbols: Vec<&str> = match matches.values_of("symbols") {
@@ -12,7 +13,7 @@ fn main() {
     };
 
     let start_date = match matches.value_of("from") {
-        Some(str_date) => match date::from_string(str_date) {
+        Some(str_date) => match sst::date::from_string(str_date) {
             Ok(d) => d,
             Err(_) => exit("Date parsing error. follow pattern yyyy-mm-dd"),
         },
@@ -25,11 +26,82 @@ fn main() {
     }
 
     // 3. Ingest stock quote data from API
+    let provider = yahoo::YahooConnector::new();
+    let start = start_date.and_hms_milli(0, 0, 0, 0);
+    let end = end_date.and_hms_milli(23, 59, 59, 999);
+    let indicators: Vec<Indicator> = symbols
+        .iter()
+        .map(
+            |&symbol| match provider.get_quote_history(symbol, start, end) {
+                Ok(res) => match (res.last_quote(), res.quotes()) {
+                    (Ok(last_quote), Ok(quotes)) => Indicator::new(symbol, last_quote, quotes),
+                    (Err(err), _) => {
+                        let msg = format!("failed to get last quote: {:?}", err);
+                        exit(&msg);
+                    }
+                    (_, Err(err)) => {
+                        let msg = format!("failed to get quotes: {:?}", err);
+                        exit(&msg);
+                    }
+                },
+                Err(err) => {
+                    let msg = format!("failed to get quote history: {:?}", err);
+                    exit(&msg);
+                }
+            },
+        )
+        .collect();
     // 4. Calculate performance indicators
     // 5. print CSV
+    for i in indicators {
+        i.print();
+    }
 }
 
 fn exit(message: &str) -> ! {
     eprintln!("Error: {}", message);
     std::process::exit(1);
+}
+
+fn fmt_opt_f64(val: Option<f64>) -> String {
+    val.map(|v| format!("{:.2}", v)).unwrap_or_default()
+}
+
+struct Indicator<'a> {
+    symbol: &'a str,
+    price: f64, // last quote price
+    adjcloses: Vec<f64>,
+}
+
+impl<'a> Indicator<'a> {
+    fn new(symbol: &'a str, last_quote: yahoo::Quote, quotes: Vec<yahoo::Quote>) -> Self {
+        Self {
+            symbol,
+            price: last_quote.adjclose,
+            adjcloses: quotes.iter().map(|q| q.adjclose).collect(),
+        }
+    }
+
+    fn min(&self) -> Option<f64> {
+        sst::min(&self.adjcloses)
+    }
+
+    fn max(&self) -> Option<f64> {
+        sst::max(&self.adjcloses)
+    }
+
+    fn percentage(&self) -> Option<f64> {
+        sst::price_diff(&self.adjcloses).map(|(v, _)| v)
+    }
+
+    fn print(&self) {
+        println!(
+            "{},${:.2},${},${},{}%",
+            self.symbol,
+            self.price,
+            fmt_opt_f64(self.min()),
+            fmt_opt_f64(self.max()),
+            fmt_opt_f64(self.percentage()),
+        );
+    }
 }

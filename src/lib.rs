@@ -27,7 +27,7 @@ pub fn price_diff(series: &[f64]) -> Option<(f64, f64)> {
             let diff = last - first;
             let percentage = diff * 100.0 / first;
             Some((percentage, diff.abs()))
-        },
+        }
         (_, _) => None,
     }
 }
