@@ -1,5 +1,6 @@
 pub mod app;
 pub mod date;
+pub mod yahoo;
 
 pub fn min(series: &[f64]) -> Option<f64> {
     filter_nan(series).min_by(cmp_f64())
