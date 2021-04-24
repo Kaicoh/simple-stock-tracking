@@ -1,6 +1,7 @@
-use chrono::{Utc, DateTime, NaiveDateTime};
+use chrono::{Date, Utc};
 use simple_stock_tracking as sst;
-use simple_stock_tracking::yahoo::Indicator;
+use yahoo_finance_api as yahoo;
+use yahoo_finance_api::{YResponse, YahooError};
 
 fn main() {
     // 1. Get command line parameters
@@ -26,24 +27,24 @@ fn main() {
     }
 
     // 3. Ingest stock quote data from API
-    let indicators: Vec<Indicator> = symbols
+    let responses: Vec<YahooResponses> = symbols
         .iter()
-        .map(|&symbol| {
-            match Indicator::new(symbol, start, end) {
-                Ok(indicator) => indicator,
-                Err(err) => {
-                    let msg = format!("failed to get quotes: {:?}", err);
-                    exit(&msg);
-                },
+        .map(|&symbol| match YahooResponses::new(symbol, start, end) {
+            Ok(responses) => responses,
+            Err(err) => {
+                let msg = format!("failed to get quotes: {:?}", err);
+                exit(&msg);
             }
         })
         .collect();
 
     print_csv_header();
-    for i in indicators {
+    for r in responses {
         // 4. Calculate performance indicators
         // 5. print CSV
-        print_csv_row(i);
+        if let Err(err) = print_csv_row(r) {
+            exit(&err.to_string());
+        }
     }
 }
 
@@ -56,28 +57,48 @@ fn print_csv_header() {
     println!("period start,symbol,price,change %,min,max,30d avg");
 }
 
-fn print_csv_row(indicator: Indicator) {
-    let dt = DateTime::<Utc>::from_utc(NaiveDateTime::from_timestamp(indicator.timestamp() as i64, 0), Utc);
-    let percentage = sst::price_diff(indicator.prices_in_period()).map(|(v, _)| v);
-    let min = sst::min(indicator.prices_in_period());
-    let max = sst::max(indicator.prices_in_period());
-    let avg = sst::n_window_sma(30, indicator.prices_last_30_days())
-        .unwrap()
-        .last()
-        .cloned();
+fn print_csv_row(responses: YahooResponses) -> Result<(), YahooError> {
+    let dt = sst::date_of_last_quote(&responses.period)?;
+    let close = sst::close_price(&responses.period)?;
+    let percentage = sst::change_rate(&responses.period)?;
+    let min = sst::min_price(&responses.period)?;
+    let max = sst::max_price(&responses.period)?;
+    let avg = sst::average_price(&responses.thirty_days)?;
 
     println!(
-        "{},{},${:.2},{}%,${},${},${}",
+        "{},{},${:.2},{}%,${},${},${:.2}",
         dt.to_rfc3339(),
-        indicator.symbol,
-        indicator.price(),
+        responses.symbol,
+        close,
         fmt_opt_f64(percentage),
         fmt_opt_f64(min),
         fmt_opt_f64(max),
-        fmt_opt_f64(avg),
+        avg,
     );
+
+    Ok(())
 }
 
 fn fmt_opt_f64(val: Option<f64>) -> String {
     val.map(|v| format!("{:.2}", v)).unwrap_or_default()
+}
+
+struct YahooResponses<'a> {
+    symbol: &'a str,
+    period: YResponse,
+    thirty_days: YResponse,
+}
+
+impl<'a> YahooResponses<'a> {
+    fn new(symbol: &'a str, start: Date<Utc>, end: Date<Utc>) -> Result<Self, yahoo::YahooError> {
+        let provider = yahoo::YahooConnector::new();
+        let num_days = format!("{}d", end.signed_duration_since(start).num_days());
+        let period = provider.get_quote_range(symbol, "1d", &num_days)?;
+        let thirty_days = provider.get_quote_range(symbol, "1d", "30d")?;
+        Ok(Self {
+            symbol,
+            period,
+            thirty_days,
+        })
+    }
 }

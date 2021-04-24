@@ -1,6 +1,8 @@
+use chrono::{DateTime, NaiveDateTime, Utc};
+use yahoo_finance_api::{YResponse, YahooError};
+
 pub mod app;
 pub mod date;
-pub mod yahoo;
 
 pub fn min(series: &[f64]) -> Option<f64> {
     filter_nan(series).min_by(cmp_f64())
@@ -33,6 +35,35 @@ pub fn price_diff(series: &[f64]) -> Option<(f64, f64)> {
     }
 }
 
+pub fn date_of_last_quote(response: &YResponse) -> Result<DateTime<Utc>, YahooError> {
+    response.last_quote().map(|quote| {
+        DateTime::<Utc>::from_utc(
+            NaiveDateTime::from_timestamp(quote.timestamp as i64, 0),
+            Utc,
+        )
+    })
+}
+
+pub fn close_price(response: &YResponse) -> Result<f64, YahooError> {
+    response.last_quote().map(|quote| quote.adjclose)
+}
+
+pub fn change_rate(response: &YResponse) -> Result<Option<f64>, YahooError> {
+    adjcloses(response).map(|prices| price_diff(&prices).map(|(percentage, _)| percentage))
+}
+
+pub fn max_price(response: &YResponse) -> Result<Option<f64>, YahooError> {
+    adjcloses(response).map(|prices| max(&prices))
+}
+
+pub fn min_price(response: &YResponse) -> Result<Option<f64>, YahooError> {
+    adjcloses(response).map(|prices| min(&prices))
+}
+
+pub fn average_price(response: &YResponse) -> Result<f64, YahooError> {
+    adjcloses(response).map(|prices| average(&prices))
+}
+
 fn filter_nan(series: &[f64]) -> impl Iterator<Item = f64> + '_ {
     series
         .iter()
@@ -50,6 +81,12 @@ fn average(series: &[f64]) -> f64 {
     } else {
         series.iter().sum::<f64>() / series.len() as f64
     }
+}
+
+fn adjcloses(response: &YResponse) -> Result<Vec<f64>, YahooError> {
+    response
+        .quotes()
+        .map(|quotes| quotes.iter().map(|quote| quote.adjclose).collect())
 }
 
 struct Window<'a> {
